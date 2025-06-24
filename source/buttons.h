@@ -9,3 +9,4 @@ uint32_t buttonReleased(KPADStatus kStatus);
 
 void calcVPAD(VPADStatus *vStatus);
 void calcKPAD(KPADStatus *kStatus);
+void clearButtons();

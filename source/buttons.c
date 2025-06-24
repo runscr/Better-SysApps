@@ -212,3 +212,48 @@ void calcKPAD(KPADStatus *kStatus) {
         minusIsHeld = false;
     }
 }
+
+// Clears cached button values
+void clearButtons() {
+    aIsPressed = false;
+    aIsHeld = false;
+
+    bIsPressed = false;
+    bIsHeld = false;
+
+    xIsPressed = false;
+    xIsHeld = false;
+
+    yIsPressed = false;
+    yIsHeld = false;
+
+    rIsPressed = false;
+    rIsHeld = false;
+
+    lIsPressed = false;
+    lIsHeld = false;
+
+    zrIsPressed = false;
+    zrIsHeld = false;
+
+    zlIsPressed = false;
+    zlIsHeld = false;
+
+    upIsPressed = false;
+    upIsHeld = false;
+
+    downIsPressed = false;
+    downIsHeld = false;
+
+    leftIsPressed = false;
+    leftIsHeld = false;
+
+    rightIsPressed = false;
+    rightIsHeld = false;
+
+    plusIsPressed = false;
+    plusIsHeld = false;
+
+    minusIsPressed = false;
+    minusIsHeld = false;
+}

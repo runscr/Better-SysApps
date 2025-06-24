@@ -58,6 +58,7 @@ WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle ro
 void ConfigMenuClosedCallback() {
     WUPSStorageAPI_SaveStorage(false);
 
+    clearButtons();
     isConfigOpen = false;
 }
 

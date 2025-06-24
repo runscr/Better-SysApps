@@ -8,6 +8,7 @@
 #include <coreinit/title.h>
 #include <sysapp/title.h>
 #include <gx2/surface.h>
+#include <memory/mappedmemory.h>
 
 #include "buttons.h"
 
@@ -106,19 +107,38 @@ ON_APPLICATION_START() {
 }
 
 DECL_FUNCTION(void, GX2CopyColorBufferToScanBuffer, GX2ColorBuffer *colorBuffer, GX2ScanTarget scan_target) {
-    if (currentTID == sysTID) {
-        if (mirrorScreens) {
-            if(scan_target == GX2_SCAN_TARGET_DRC) {
-               real_GX2CopyColorBufferToScanBuffer(colorBuffer, GX2_SCAN_TARGET_DRC | GX2_SCAN_TARGET_TV);
+    if (mirrorScreens && currentTID == sysTID) {
+        if (scan_target == GX2_SCAN_TARGET_DRC) {
+            scan_target = GX2_SCAN_TARGET_TV | GX2_SCAN_TARGET_DRC;
+        }
+        
+        // Proper image handling HEAVILY inspired from SwipSwapMe
+        if (colorBuffer->surface.aa != GX2_AA_MODE1X) {
+            // If AA is enabled, we need to resolve the AA buffer.
+            GX2Surface tempSurface;
+            tempSurface = colorBuffer->surface;
+            tempSurface.aa = GX2_AA_MODE1X;
+            GX2CalcSurfaceSizeAndAlignment(&tempSurface);
+
+            tempSurface.image = MEMAllocFromMappedMemoryForGX2Ex(tempSurface.imageSize, tempSurface.alignment);
+            if (tempSurface.image != NULL) {
+                GX2ResolveAAColorBuffer(colorBuffer, &tempSurface, 0, 0);
+
+                GX2Surface surfaceCpy = colorBuffer->surface;
+                colorBuffer->surface = tempSurface;
+                real_GX2CopyColorBufferToScanBuffer(colorBuffer, scan_target);
+                colorBuffer->surface = surfaceCpy;
+
+                MEMFreeToMappedMemory(tempSurface.image);
+                tempSurface.image = NULL;
+                return;
+            }
+            else {
+                WHBLogPrintf("Failed to allocate %d bytes for resolving AA", tempSurface.imageSize);
             }
         }
-        else {
-            real_GX2CopyColorBufferToScanBuffer(colorBuffer, scan_target);
-        }
     }
-    else {
-        real_GX2CopyColorBufferToScanBuffer(colorBuffer, scan_target);
-    }        
+    real_GX2CopyColorBufferToScanBuffer(colorBuffer, scan_target);
 }
 
 DECL_FUNCTION(int32_t, VPADRead, VPADChan chan, VPADStatus *vStatus, uint32_t size, VPADReadError *err) {

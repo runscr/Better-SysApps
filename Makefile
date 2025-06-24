@@ -11,6 +11,8 @@ TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/wups/share/wups_rules
 
 WUT_ROOT := $(DEVKITPRO)/wut
+WUMS_ROOT := $(DEVKITPRO)/wums
+
 #-------------------------------------------------------------------------------
 # TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
@@ -35,15 +37,15 @@ CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -D__WUPS__
 CXXFLAGS	:= $(CFLAGS)
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map) $(WUPSSPECS) 
+LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map) -T$(WUMS_ROOT)/share/libmappedmemory.ld $(WUPSSPECS)
 
-LIBS	:= -lwups -lwut
+LIBS	:= -lwups -lwut -lmappedmemory
 
 #-------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level
 # containing include and lib
 #-------------------------------------------------------------------------------
-LIBDIRS	:= $(PORTLIBS) $(WUPS_ROOT) $(WUT_ROOT)
+LIBDIRS	:= $(PORTLIBS) $(WUPS_ROOT) $(WUT_ROOT) $(WUMS_ROOT)
 
 #-------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional

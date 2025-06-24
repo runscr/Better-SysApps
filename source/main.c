@@ -150,7 +150,18 @@ DECL_FUNCTION(int32_t, VPADRead, VPADChan chan, VPADStatus *vStatus, uint32_t si
         if (err && *err != VPAD_READ_SUCCESS) {
             *err = VPAD_READ_SUCCESS;
             res = 1;
-            memset(vStatus, 0, sizeof(VPADStatus));
+            memset(vStatus, 0x00, sizeof(VPADStatus));
+
+            // full battery
+            vStatus->battery = 0xC0;
+
+            // maximum volume
+            vStatus->slideVolume = vStatus->slideVolumeEx = 0xFF;
+
+            // default touch
+            vStatus->tpNormal.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
+            vStatus->tpFiltered1.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
+            vStatus->tpFiltered2.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
         }
         calcVPAD(vStatus);
     }

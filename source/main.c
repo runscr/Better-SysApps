@@ -18,21 +18,47 @@ WUPS_PLUGIN_VERSION("v1.1");
 WUPS_PLUGIN_AUTHOR("Fangal");
 WUPS_PLUGIN_LICENSE("GPLv3");
 
-#define MIRROR_SCREENS_CONFIG_ID "mirrorScreens"
-#define INPUT_REDIRECTION_CONFIG_ID "inputRedirection"
+#define MIRROR_SCREENS_CONFIG_ID "mirrorScreensConfig"
+#define INPUT_REDIRECTION_CONFIG_ID "inputRedirectionConfig"
 
 WUPS_USE_STORAGE("Better_Settings");
 
-bool mirrorScreens = true;
-bool inputRedirection = true;
-bool isConfigOpen = false;
+bool mirrorScreensConfig = true;
+bool inputRedirectionConfig = true;
+bool patchDisplay = false;
+bool patchInput = false;
 
-uint64_t sysTID = 0;
+uint64_t hsTID = 0;
 uint64_t currentTID = 0;
+
+// Determines which patches are active at runtime
+void calcRuntimePatches(uint64_t titleID) {
+    // Checks if title is a system app or the H&S app.
+    // Patches are disabled for H&S as homebrew runs under that title id.
+    bool isHSApp = (titleID == hsTID);
+    bool isSysApp = (titleID & 0xFFFFFFFF'00000000ULL) == 0x00050010'00000000ULL;
+
+    if (isSysApp && !isHSApp) {
+        if (mirrorScreensConfig) {
+            patchDisplay = true;
+        } else {
+            patchDisplay = false;
+        }
+
+        if (inputRedirectionConfig) {
+            patchInput = true;
+        } else {
+            patchInput = false;
+        }
+    } else {
+        patchDisplay = false;
+        patchInput = false;
+    }
+}
 
 // Uses KPAD to poll the specified WPAD channel and runs calcKPAD if data is valid
 void pollKPAD(WPADChan chan) {
-    if (currentTID == sysTID && !isConfigOpen && inputRedirection) {
+    if (patchInput) {
         KPADStatus kStatus;
         KPADError kErr;
         KPADReadEx(chan, &kStatus, 1, &kErr);
@@ -42,25 +68,26 @@ void pollKPAD(WPADChan chan) {
     }
 }
 
-void mirrorScreensChanged(ConfigItemBoolean *item, bool newVal) {
-    mirrorScreens = newVal;
-    WUPSStorageAPI_StoreBool(NULL, MIRROR_SCREENS_CONFIG_ID, mirrorScreens);
+void mirrorScreensConfigChanged(ConfigItemBoolean *item, bool newVal) {
+    mirrorScreensConfig = newVal;
+    WUPSStorageAPI_StoreBool(NULL, MIRROR_SCREENS_CONFIG_ID, mirrorScreensConfig);
 }
 
-void inputRedirectionChanged(ConfigItemBoolean *item, bool newVal) {
-    inputRedirection = newVal;
-    WUPSStorageAPI_StoreBool(NULL, INPUT_REDIRECTION_CONFIG_ID, inputRedirection);
+void inputRedirectionConfigChanged(ConfigItemBoolean *item, bool newVal) {
+    inputRedirectionConfig = newVal;
+    WUPSStorageAPI_StoreBool(NULL, INPUT_REDIRECTION_CONFIG_ID, inputRedirectionConfig);
 }
 
 WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle root) {
-    isConfigOpen = true;
+    patchDisplay = false;
+    patchInput = false;
 
-    if (WUPSConfigItemBoolean_AddToCategory(root, MIRROR_SCREENS_CONFIG_ID, "Mirror Gamepad screen to the TV", true, mirrorScreens, &mirrorScreensChanged) != WUPSCONFIG_API_RESULT_SUCCESS) {
+    if (WUPSConfigItemBoolean_AddToCategory(root, MIRROR_SCREENS_CONFIG_ID, "Mirror Gamepad screen to the TV", true, mirrorScreensConfig, &mirrorScreensConfigChanged) != WUPSCONFIG_API_RESULT_SUCCESS) {
         WHBLogPrintf("Failed to add item");
         return WUPSCONFIG_API_CALLBACK_RESULT_ERROR;
     }
 
-    if (WUPSConfigItemBoolean_AddToCategory(root, INPUT_REDIRECTION_CONFIG_ID, "Redirect inputs", true, inputRedirection, &inputRedirectionChanged) != WUPSCONFIG_API_RESULT_SUCCESS) {
+    if (WUPSConfigItemBoolean_AddToCategory(root, INPUT_REDIRECTION_CONFIG_ID, "Redirect inputs", true, inputRedirectionConfig, &inputRedirectionConfigChanged) != WUPSCONFIG_API_RESULT_SUCCESS) {
         WHBLogPrintf("Failed to add item");
         return WUPSCONFIG_API_CALLBACK_RESULT_ERROR;
     } 
@@ -72,14 +99,14 @@ void ConfigMenuClosedCallback() {
     WUPSStorageAPI_SaveStorage(false);
 
     clearButtons();
-    isConfigOpen = false;
+    calcRuntimePatches(currentTID);
 }
 
 INITIALIZE_PLUGIN() {
     WHBLogUdpInit();
     WHBLogPrintf("Hola from Better Settings!");
 
-    sysTID = _SYSGetSystemApplicationTitleId(SYSTEM_APP_ID_SYSTEM_SETTINGS);
+    hsTID = _SYSGetSystemApplicationTitleId(SYSTEM_APP_ID_HEALTH_AND_SAFETY);
 
     WUPSConfigAPIOptionsV1 configOptions = {.name = "Better Settings"};
     if (WUPSConfigAPI_Init(configOptions, ConfigMenuOpenedCallback, ConfigMenuClosedCallback) != WUPSCONFIG_API_RESULT_SUCCESS) {
@@ -87,8 +114,8 @@ INITIALIZE_PLUGIN() {
     }
 
     WUPSStorageError storageRes;
-    if ((storageRes = WUPSStorageAPI_GetBool(NULL, MIRROR_SCREENS_CONFIG_ID, &mirrorScreens)) == WUPS_STORAGE_ERROR_NOT_FOUND) {
-        if (WUPSStorageAPI_StoreBool(NULL, MIRROR_SCREENS_CONFIG_ID, mirrorScreens) != WUPS_STORAGE_ERROR_SUCCESS) {
+    if ((storageRes = WUPSStorageAPI_GetBool(NULL, MIRROR_SCREENS_CONFIG_ID, &mirrorScreensConfig)) == WUPS_STORAGE_ERROR_NOT_FOUND) {
+        if (WUPSStorageAPI_StoreBool(NULL, MIRROR_SCREENS_CONFIG_ID, mirrorScreensConfig) != WUPS_STORAGE_ERROR_SUCCESS) {
             WHBLogPrintf("Failed to store bool");
         }
     }
@@ -96,11 +123,11 @@ INITIALIZE_PLUGIN() {
         WHBLogPrintf("Failed to get bool %s (%d)", WUPSConfigAPI_GetStatusStr(storageRes), storageRes);
     }
     else {
-        WHBLogPrintf("Successfully read the value from storage: %d %s (%d)", mirrorScreens, WUPSConfigAPI_GetStatusStr(storageRes), storageRes);
+        WHBLogPrintf("Successfully read the value from storage: %d %s (%d)", mirrorScreensConfig, WUPSConfigAPI_GetStatusStr(storageRes), storageRes);
     }    
 
-    if ((storageRes = WUPSStorageAPI_GetBool(NULL, INPUT_REDIRECTION_CONFIG_ID, &inputRedirection)) == WUPS_STORAGE_ERROR_NOT_FOUND) {
-        if (WUPSStorageAPI_StoreBool(NULL, INPUT_REDIRECTION_CONFIG_ID, inputRedirection) != WUPS_STORAGE_ERROR_SUCCESS) {
+    if ((storageRes = WUPSStorageAPI_GetBool(NULL, INPUT_REDIRECTION_CONFIG_ID, &inputRedirectionConfig)) == WUPS_STORAGE_ERROR_NOT_FOUND) {
+        if (WUPSStorageAPI_StoreBool(NULL, INPUT_REDIRECTION_CONFIG_ID, inputRedirectionConfig) != WUPS_STORAGE_ERROR_SUCCESS) {
             WHBLogPrintf("Failed to store bool");
         }
     }
@@ -108,7 +135,7 @@ INITIALIZE_PLUGIN() {
         WHBLogPrintf("Failed to get bool %s (%d)", WUPSConfigAPI_GetStatusStr(storageRes), storageRes);
     }
     else {
-        WHBLogPrintf("Successfully read the value from storage: %d %s (%d)", inputRedirection, WUPSConfigAPI_GetStatusStr(storageRes), storageRes);
+        WHBLogPrintf("Successfully read the value from storage: %d %s (%d)", inputRedirectionConfig, WUPSConfigAPI_GetStatusStr(storageRes), storageRes);
     }        
 
     WUPSStorageAPI_SaveStorage(false);    
@@ -116,10 +143,11 @@ INITIALIZE_PLUGIN() {
 
 ON_APPLICATION_START() {
     currentTID = OSGetTitleID();
+    calcRuntimePatches(currentTID);
 }
 
 DECL_FUNCTION(void, GX2CopyColorBufferToScanBuffer, GX2ColorBuffer *colorBuffer, GX2ScanTarget scan_target) {
-    if (mirrorScreens && currentTID == sysTID) {
+    if (patchDisplay) {
         if (scan_target == GX2_SCAN_TARGET_DRC) {
             scan_target = GX2_SCAN_TARGET_TV | GX2_SCAN_TARGET_DRC;
         }
@@ -156,7 +184,7 @@ DECL_FUNCTION(void, GX2CopyColorBufferToScanBuffer, GX2ColorBuffer *colorBuffer,
 DECL_FUNCTION(int32_t, VPADRead, VPADChan chan, VPADStatus *vStatus, uint32_t size, VPADReadError *err) {
     int32_t res = real_VPADRead(chan, vStatus, size, err);
 
-    if (currentTID == sysTID && !isConfigOpen && inputRedirection) {
+    if (patchInput) {
         // For when a GamePad is not connected
         // Special thanks to Lynx64, Maschell, and the Cemu project for this!
         if (err && *err != VPAD_READ_SUCCESS) {

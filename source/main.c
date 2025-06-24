@@ -30,6 +30,18 @@ bool isConfigOpen = false;
 uint64_t sysTID = 0;
 uint64_t currentTID = 0;
 
+// Uses KPAD to poll the specified WPAD channel and runs calcKPAD if data is valid
+void pollKPAD(WPADChan chan) {
+    if (currentTID == sysTID && !isConfigOpen && inputRedirection) {
+        KPADStatus kStatus;
+        KPADError kErr;
+        KPADReadEx(chan, &kStatus, 1, &kErr);
+        if (kErr == KPAD_ERROR_OK) {
+            calcKPAD(&kStatus);
+        }
+    }
+}
+
 void mirrorScreensChanged(ConfigItemBoolean *item, bool newVal) {
     mirrorScreens = newVal;
     WUPSStorageAPI_StoreBool(NULL, MIRROR_SCREENS_CONFIG_ID, mirrorScreens);
@@ -169,16 +181,13 @@ DECL_FUNCTION(int32_t, VPADRead, VPADChan chan, VPADStatus *vStatus, uint32_t si
     return res;
 }
 
-DECL_FUNCTION(int32_t, KPADReadEx, KPADChan chan, KPADStatus *kStatus, uint32_t size, KPADError *err) {
-    int32_t res = real_KPADReadEx(chan, kStatus, size, err);
-    
-    if (currentTID == sysTID) {
-        calcKPAD(kStatus);
-    }
+DECL_FUNCTION(void, KPADInitEx, KPADUnifiedWpadStatus *buffer, uint32_t count) {
+    real_KPADInitEx(buffer, count);
 
-    return res;
+    // Setup KPAD polling for when new KPADStatus data is stored in the ring buffer
+    KPADSetSamplingCallback(WPAD_CHAN_0, pollKPAD);
 }
 
 WUPS_MUST_REPLACE(GX2CopyColorBufferToScanBuffer, WUPS_LOADER_LIBRARY_GX2, GX2CopyColorBufferToScanBuffer);
-WUPS_MUST_REPLACE(KPADReadEx, WUPS_LOADER_LIBRARY_PADSCORE, KPADReadEx);
-WUPS_MUST_REPLACE(VPADRead, WUPS_LOADER_LIBRARY_VPAD, VPADRead);
+WUPS_MUST_REPLACE_FOR_PROCESS(VPADRead, WUPS_LOADER_LIBRARY_VPAD, VPADRead, WUPS_FP_TARGET_PROCESS_ALL);
+WUPS_MUST_REPLACE_FOR_PROCESS(KPADInitEx, WUPS_LOADER_LIBRARY_PADSCORE, KPADInitEx, WUPS_FP_TARGET_PROCESS_ALL);

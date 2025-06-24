@@ -146,7 +146,7 @@ DECL_FUNCTION(int32_t, VPADRead, VPADChan chan, VPADStatus *vStatus, uint32_t si
 
     if (currentTID == sysTID && !isConfigOpen && inputRedirection) {
         // For when a GamePad is not connected
-        // Special thanks to Lynx64 and Maschell for this!
+        // Special thanks to Lynx64, Maschell, and the Cemu project for this!
         if (err && *err != VPAD_READ_SUCCESS) {
             *err = VPAD_READ_SUCCESS;
             res = 1;

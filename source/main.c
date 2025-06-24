@@ -7,6 +7,7 @@
 #include <whb/log_udp.h>
 #include <coreinit/title.h>
 #include <sysapp/title.h>
+#include <sysapp/switch.h>
 #include <gx2/surface.h>
 #include <memory/mappedmemory.h>
 
@@ -27,6 +28,7 @@ bool mirrorScreensConfig = true;
 bool inputRedirectionConfig = true;
 bool patchDisplay = false;
 bool patchInput = false;
+bool noDRC = false;
 
 uint64_t hsTID = 0;
 uint64_t currentTID = 0;
@@ -184,25 +186,29 @@ DECL_FUNCTION(void, GX2CopyColorBufferToScanBuffer, GX2ColorBuffer *colorBuffer,
 DECL_FUNCTION(int32_t, VPADRead, VPADChan chan, VPADStatus *vStatus, uint32_t size, VPADReadError *err) {
     int32_t res = real_VPADRead(chan, vStatus, size, err);
 
+    // For when a GamePad is not connected
+    // Special thanks to Lynx64, Maschell, and the Cemu project for this!
+    if (patchInput && err && *err != VPAD_READ_SUCCESS) {
+        noDRC = true;
+        *err = VPAD_READ_SUCCESS;
+        res = 1;
+        memset(vStatus, 0x00, sizeof(VPADStatus));
+
+        // full battery
+        vStatus->battery = 0xC0;
+
+        // maximum volume
+        vStatus->slideVolume = vStatus->slideVolumeEx = 0xFF;
+
+        // default touch
+        vStatus->tpNormal.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
+        vStatus->tpFiltered1.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
+        vStatus->tpFiltered2.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
+    } else {
+        noDRC = false;
+    }
+
     if (patchInput) {
-        // For when a GamePad is not connected
-        // Special thanks to Lynx64, Maschell, and the Cemu project for this!
-        if (err && *err != VPAD_READ_SUCCESS) {
-            *err = VPAD_READ_SUCCESS;
-            res = 1;
-            memset(vStatus, 0x00, sizeof(VPADStatus));
-
-            // full battery
-            vStatus->battery = 0xC0;
-
-            // maximum volume
-            vStatus->slideVolume = vStatus->slideVolumeEx = 0xFF;
-
-            // default touch
-            vStatus->tpNormal.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
-            vStatus->tpFiltered1.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
-            vStatus->tpFiltered2.validity = VPAD_INVALID_X | VPAD_INVALID_Y;
-        }
         calcVPAD(vStatus);
     }
 
@@ -216,6 +222,15 @@ DECL_FUNCTION(void, KPADInitEx, KPADUnifiedWpadStatus *buffer, uint32_t count) {
     KPADSetSamplingCallback(WPAD_CHAN_0, pollKPAD);
 }
 
+DECL_FUNCTION(int32_t, SYSDirectlySwitchTo, SysAppPFID pfid) {
+    // Prevent amiibo settings from loading
+    if (noDRC && pfid == SYSAPP_PFID_CABINETU) {
+        return 0;
+    }
+    return real_SYSDirectlySwitchTo(pfid);
+}
+
 WUPS_MUST_REPLACE(GX2CopyColorBufferToScanBuffer, WUPS_LOADER_LIBRARY_GX2, GX2CopyColorBufferToScanBuffer);
 WUPS_MUST_REPLACE_FOR_PROCESS(VPADRead, WUPS_LOADER_LIBRARY_VPAD, VPADRead, WUPS_FP_TARGET_PROCESS_ALL);
 WUPS_MUST_REPLACE_FOR_PROCESS(KPADInitEx, WUPS_LOADER_LIBRARY_PADSCORE, KPADInitEx, WUPS_FP_TARGET_PROCESS_ALL);
+WUPS_MUST_REPLACE(SYSDirectlySwitchTo, WUPS_LOADER_LIBRARY_SYSAPP, _SYSDirectlySwitchTo);

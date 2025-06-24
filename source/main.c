@@ -13,16 +13,16 @@
 
 #include "buttons.h"
 
-WUPS_PLUGIN_NAME("Better Settings");
-WUPS_PLUGIN_DESCRIPTION("An aroma plugin that improves the System Settings user experience!");
-WUPS_PLUGIN_VERSION("v1.1");
-WUPS_PLUGIN_AUTHOR("Fangal");
+WUPS_PLUGIN_NAME("Better SysApps");
+WUPS_PLUGIN_DESCRIPTION("An aroma plugin that improves the Wii U System Applications!");
+WUPS_PLUGIN_VERSION("v1.3");
+WUPS_PLUGIN_AUTHOR("runscr");
 WUPS_PLUGIN_LICENSE("GPLv3");
 
 #define MIRROR_SCREENS_CONFIG_ID "mirrorScreensConfig"
 #define INPUT_REDIRECTION_CONFIG_ID "inputRedirectionConfig"
 
-WUPS_USE_STORAGE("Better_Settings");
+WUPS_USE_STORAGE("Better_SysApps");
 
 bool mirrorScreensConfig = true;
 bool inputRedirectionConfig = true;
@@ -106,11 +106,11 @@ void ConfigMenuClosedCallback() {
 
 INITIALIZE_PLUGIN() {
     WHBLogUdpInit();
-    WHBLogPrintf("Hola from Better Settings!");
+    WHBLogPrintf("Hola from Better SysApps!");
 
     hsTID = _SYSGetSystemApplicationTitleId(SYSTEM_APP_ID_HEALTH_AND_SAFETY);
 
-    WUPSConfigAPIOptionsV1 configOptions = {.name = "Better Settings"};
+    WUPSConfigAPIOptionsV1 configOptions = {.name = "Better SysApps"};
     if (WUPSConfigAPI_Init(configOptions, ConfigMenuOpenedCallback, ConfigMenuClosedCallback) != WUPSCONFIG_API_RESULT_SUCCESS) {
         WHBLogPrintf("Failed to init config api");
     }

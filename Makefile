@@ -20,7 +20,7 @@ WUMS_ROOT := $(DEVKITPRO)/wums
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #-------------------------------------------------------------------------------
-TARGET		:=	BetterSettings
+TARGET		:=	BetterSysApps
 BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data

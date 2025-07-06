@@ -1,10 +1,10 @@
 # Better SysApps
-A fork of [Better Settings](https://github.com/Fangal-Airbag/Better-Settings) by Fangal-Airbag
+> A fork of [Better Settings](https://github.com/Fangal-Airbag/Better-Settings) by Fangal-Airbag
 
 ## Overview
 Better SysApps is an aroma plugin that improves the Wii U System Applications by doing the following:
 - Adds support for viewing Gamepad only information on the TV
-- Adds input support for Wii U Pro Controllers and Wii Classic Controllers on Gampad only titles
+- Adds input support for Wii U Pro Controllers and Wii Classic Controllers on Gampad only system titles
 - Does the above ***without*** ever needing a real Gamepad!
 - Can assist in setting up a Wii U (after factory reset) without a Gamepad!
 
